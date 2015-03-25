@@ -30,11 +30,15 @@ local debugMode = false
 
 local wordCompleted = false
 
+local gameIsOver = false
+
 local cpuTargetX = 0
 
 local SCORE = 0
 
 mult = 1
+
+xmult = 1
 
 local wordStartTime = 0
 
@@ -119,7 +123,7 @@ function love.update(dt)
 		tickCounter = 0
 	end
 
-	if started then
+	if started and not gameIsOver then
 		ball.pos = ball.pos + ball.vel
 	end
 	ball2.pos = ball2.pos + ball2.vel
@@ -144,7 +148,7 @@ function love.update(dt)
 	end
 
 	-- if cpu_paddle.pos.x > cpuTargetX - PADDLE_WIDTH / 2 + 5 or cpu_paddle.pos.x < cpuTargetX + PADDLE_WIDTH / 2 - 5 then
-	if math.floor(cpu_paddle.pos.x) == math.floor(cpuTargetX - PADDLE_WIDTH / 2) then
+	if cpu_paddle.pos.x > cpuTargetX - PADDLE_WIDTH / 2 - 5 and cpu_paddle.pos.x < cpuTargetX - PADDLE_WIDTH / 2 + 5 then
 		cpu_paddle.vel.x = 0
 	end
 
@@ -194,6 +198,9 @@ function love.update(dt)
 	if ball.pos.y > WINDOW_HEIGHT - 40 - PADDLE_HEIGHT and isBallBetweenPaddle(ball, vector(xPos, 0)) then
 		ball.pos.y = WINDOW_HEIGHT - 40 - PADDLE_HEIGHT
 		bounce()
+		xmult = math.random(75, 150) / (100 - mult * 10)
+		ball.vel = ball.vel * 1.2
+		ball.vel.x = ball.vel.x * xmult
 		ball.vel.y = -ball.vel.y
 		spawnNewSimBall()
 	end
@@ -201,7 +208,6 @@ function love.update(dt)
 	--BOUNCE OFF OF TOP
 	if isBallBetweenPaddle(ball, cpu_paddle.pos) then
 		if ball.pos.y < cpu_paddle.pos.y + PADDLE_HEIGHT then
-			SCORE = SCORE + 1000
 			bounce()
 			ball.pos.y = cpu_paddle.pos.y + PADDLE_HEIGHT
 			if ball.vel.y < 0 then
@@ -215,6 +221,7 @@ function love.update(dt)
 	else
 		if ball.pos.y < 0 then
 			sound_bounce_cpufail:play()
+			SCORE = SCORE + 1000
 			ball.pos.y = 0
 			if ball.vel.y < 0 then
 				ball.vel.y = -ball.vel.y
@@ -226,6 +233,9 @@ function love.update(dt)
 		end
 	end
 
+	if ball.pos.y + ball.size > WINDOW_HEIGHT then
+		gameOver()
+	end
 	
 
 	if xPos < 0 then
@@ -248,6 +258,11 @@ function love.draw()
 	love.graphics.setColor(color_white)
 
 	love.graphics.print(math.floor(SCORE), WINDOW_WIDTH / 2, WINDOW_HEIGHT - 22)
+
+	if gameIsOver then
+		love.graphics.print("FINAL SCORE", WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2)
+		love.graphics.print(math.floor(SCORE), WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 40)
+	end
 
 	if not wordCompleted then
 		love.graphics.print(answerWord, 10, 10)
@@ -281,18 +296,19 @@ function love.draw()
 end
 
 function love.keypressed(key)
-	if key == 'backspace' then
-		currentWord = string.sub(currentWord, 1, #currentWord - 1)
-		checkWord()
-	elseif contains(letters, key) then
-		sound_tw_arr[math.random(1, #sound_tw_arr)]:play()
-		currentWord = currentWord .. key
-		checkWord()
-		if currentWord == answerWord then
-			wordComplete()
+	if not gameIsOver then
+		if key == 'backspace' then
+			currentWord = string.sub(currentWord, 1, #currentWord - 1)
+			checkWord()
+		elseif contains(letters, key) then
+			sound_tw_arr[math.random(1, #sound_tw_arr)]:play()
+			currentWord = currentWord .. key
+			checkWord()
+			if currentWord == answerWord then
+				wordComplete()
+			end
 		end
 	end
-	-- print(xPos)
 end
 
 function wordComplete()
@@ -380,4 +396,8 @@ end
 
 function bounce()
 	sound_bounce_arr[math.random(1, #sound_bounce_arr)]:play()
+end
+
+function gameOver()
+	gameIsOver = true
 end

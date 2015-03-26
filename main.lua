@@ -525,7 +525,7 @@ function selectNextWord()
 
 	local possibleWords = {}
 
-	for i = 1, 10, 1 do
+	for i = 1, 5, 1 do
 		possibleWords[i] = words[math.random(1, #words)]
 		-- print(possibleWords[i])
 	end

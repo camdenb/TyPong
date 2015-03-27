@@ -1,6 +1,11 @@
 require('words')
+require('menu')
+Gamestate = require('gamestate')
 vector = require('vector')
+Timer = require('timer')
 Shake = require('shake')
+
+local game = {}
 
 local tickCounter = 0
 local tickMax = 60
@@ -56,7 +61,10 @@ function love.load()
 	WINDOW_HEIGHT = 500
 	WINDOW_WIDTH = 700
 
-	love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, {resizable=true, vsync=enableVsync, fsaa=0})
+	-- Gamestate.registerEvents()
+ --    Gamestate.switch(menu)
+
+	love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, {resizable=true, vsync=enableVsync, fsaa=4})
 	love.window.setTitle('TyPong')
 	love.graphics.setBackgroundColor(color_black)
 
@@ -70,7 +78,7 @@ function love.load()
 
 	love.keyboard.setKeyRepeat( true )
 
-	love.audio.setVolume(.5)
+	love.audio.setVolume(.3)
 
 	Shake.reset()
 	Shake.amplitude = 0.1
@@ -120,7 +128,7 @@ function love.load()
 	end
 	ball2 = {pos = ball.pos, vel = ball.vel, size = ball.size}
 	
-	largeFont = love.graphics.newFont(18)
+	largeFont = love.graphics.newFont('Courier_Prime_Bold.ttf', 26)
 	normalFont = love.graphics.newFont(12)
 
 	waitToStartCount = 3
@@ -148,6 +156,8 @@ end
 function love.update(dt)
 
 	Shake.update(dt)
+
+	Timer.update(dt)
 
 	tickCounter = tickCounter + 1
 	if tickCounter >= tickMax then
@@ -331,7 +341,16 @@ function love.draw()
 		love.graphics.setColor(color_green)
 	end
 	if not wordCompleted then
-		love.graphics.print(currentWord, 10, 30)
+		for x = 1, #currentWord, 1 do
+			local letter = string.sub(currentWord, x, x)
+			if letter == 'e' then
+				love.graphics.print(letter, 10 + (x - 1) * 16, 38)
+			else
+				love.graphics.print(letter, 10 + (x - 1) * 16, 40)
+			end
+
+		end
+		-- love.graphics.print(currentWord, 10, 30)
 	end
 	
 end
@@ -357,7 +376,7 @@ function love.keypressed(key)
 			end
 			checkWord()
 			if currentWord == answerWord then
-				wordComplete()
+				Timer.add(.3, wordComplete)
 			end
 		end
 	end
@@ -525,7 +544,7 @@ function selectNextWord()
 
 	local possibleWords = {}
 
-	for i = 1, 5, 1 do
+	for i = 1, 3, 1 do
 		possibleWords[i] = words[math.random(1, #words)]
 		-- print(possibleWords[i])
 	end
@@ -535,7 +554,7 @@ function selectNextWord()
 
 	for i,v in ipairs(possibleWords) do
 		if getScoreOfWord(v) > highestScore then
-			highestScore = getScoreOfWord(v) - #v * 2
+			highestScore = getScoreOfWord(v) - #v * 5
 			bestWord = v 
 		end
 	end

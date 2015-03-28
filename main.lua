@@ -1,3 +1,12 @@
+--[[
+
+PLEASE IGNORE MY MESSY CODE
+believe me, I hate it too
+:(
+
+]]--
+
+
 require('words')
 require('menu')
 Gamestate = require('gamestate')
@@ -5,16 +14,20 @@ vector = require('vector')
 Timer = require('timer')
 Shake = require('shake')
 
-local game = {}
+game = {}
 
 local tickCounter = 0
 local tickMax = 60
 
-local letters = {
-	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
+letters = {
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', ' '
 }
 
 local errorsPerLetter = {
+	{'a', 1000}, {'b', 1000}, {'c', 1000}, {'d', 1000}, {'e', 1000}, {'f', 1000}, {'g', 1000}, {'h', 1000}, {'i', 1000}, {'j', 1000}, {'k', 1000}, {'l', 1000}, {'m', 1000}, {'n', 1000}, {'o', 1000}, {'p', 1000}, {'q', 1000}, {'r', 1000}, {'s', 1000}, {'t', 1000}, {'u', 1000}, {'v', 1000}, {'w', 1000}, {'x', 1000}, {'y', 1000}, {'z', 1000}
+}
+
+defaultErrorsPerLetter = {
 	{'a', 1000}, {'b', 1000}, {'c', 1000}, {'d', 1000}, {'e', 1000}, {'f', 1000}, {'g', 1000}, {'h', 1000}, {'i', 1000}, {'j', 1000}, {'k', 1000}, {'l', 1000}, {'m', 1000}, {'n', 1000}, {'o', 1000}, {'p', 1000}, {'q', 1000}, {'r', 1000}, {'s', 1000}, {'t', 1000}, {'u', 1000}, {'v', 1000}, {'w', 1000}, {'x', 1000}, {'y', 1000}, {'z', 1000}
 }
 
@@ -26,11 +39,11 @@ local PADDLE_WIDTH = 100
 
 local cpu_paddle = {pos = vector(100, 0), vel = vector(0,0), accel = vector(0,0)}
 
-local color_red = {255, 0, 0}
-local color_green = {0, 255, 0}
-local color_black = {0, 0, 0}
-local color_white = {255, 255, 255}
-local color_grey = {150, 150, 150}
+color_red = {255, 0, 0}
+color_green = {0, 255, 0}
+color_black = {0, 0, 0}
+color_white = {255, 255, 255}
+color_grey = {150, 150, 150}
 
 nextLetter = ''
 
@@ -56,34 +69,18 @@ local wordStartTime = 0
 
 local justHitCPU = false
 
+HIGH_SCORE = 0
+
 function love.load()
 
 	WINDOW_HEIGHT = 500
 	WINDOW_WIDTH = 700
 
-	-- Gamestate.registerEvents()
- --    Gamestate.switch(menu)
+	Gamestate.registerEvents()
+    Gamestate.switch(menu)
 
 	love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, {resizable=true, vsync=enableVsync, fsaa=4})
 	love.window.setTitle('TyPong')
-	love.graphics.setBackgroundColor(color_black)
-
-	if love.filesystem.exists('errorsPerLetter.txt') and true then
-		readErrors()
-	end
-
-	math.randomseed(os.time())
-
-	getScoreOfWord('asshole')
-
-	love.keyboard.setKeyRepeat( true )
-
-	love.audio.setVolume(.3)
-
-	Shake.reset()
-	Shake.amplitude = 0.1
-
-	-- answerWord = words[math.random(1, #words)]
 
 	sound_bounce_arr = {
 		love.audio.newSource('bounce1.mp3'),
@@ -117,6 +114,41 @@ function love.load()
 	}
 
 	sound_lineend = love.audio.newSource('lineend.wav')
+	sound_stuck = love.audio.newSource('stuck.wav')
+	largeFont = love.graphics.newFont('Courier_Prime_Bold.ttf', 26)
+	titleFont = love.graphics.newFont('Courier_Prime_Bold.ttf', 70)
+	love.keyboard.setKeyRepeat( true )
+
+	if love.filesystem.exists('hiscore.txt') then
+		HIGH_SCORE = love.filesystem.read('hiscore.txt')
+	else
+		love.filesystem.write('hiscore.txt', HIGH_SCORE)
+	end
+
+end
+
+function game:enter()
+
+	math.randomseed(os.time())
+
+	resetGame()
+
+	SCORE = 0
+
+	love.graphics.setBackgroundColor(color_black)
+
+	if love.filesystem.exists('errorsPerLetter.txt') and true then
+		readErrors()
+	end
+
+
+
+	love.audio.setVolume(.3)
+
+	Shake.reset()
+	Shake.amplitude = 0.1
+
+	-- answerWord = words[math.random(1, #words)]
 
 	sound_bounce_cpufail = love.audio.newSource('bounce3.mp3')
 
@@ -128,7 +160,6 @@ function love.load()
 	end
 	ball2 = {pos = ball.pos, vel = ball.vel, size = ball.size}
 	
-	largeFont = love.graphics.newFont('Courier_Prime_Bold.ttf', 26)
 	normalFont = love.graphics.newFont(12)
 
 	waitToStartCount = 3
@@ -148,12 +179,45 @@ function love.load()
 
 end
 
+function resetGame()
+	cpu_paddle = {pos = vector(100, 0), vel = vector(0,0), accel = vector(0,0)}
+	xPos = 0
+	newX = 0
+	SCORE = 0
+	nextLetter = ''
+	currentWord = ''
+	answerWord = ''
+	wrong = false
+	started = false
+	debugMode = false
+	wordCompleted = false
+	gameIsOver = false
+	cpuTargetX = 0
+	mult = 1
+	xmult = 1
+	wordStartTime = 0
+	justHitCPU = false
+	ball = {pos = vector(WINDOW_WIDTH / 2, 100), vel = vector(0, math.random(100, 200) / -100), size = 10}
+	if math.random(0,1) == 0 then
+		ball.vel.x = math.random(-200, -100) / 100
+	else
+		ball.vel.x = math.random(100, 200) / 100
+	end
+	ball2 = {pos = ball.pos, vel = ball.vel, size = ball.size}
+end
+
+function game:leave()
+
+	resetGame()
+
+end
+
 function love.resize(w, h)
 	WINDOW_HEIGHT = h
 	WINDOW_WIDTH = w
 end
 
-function love.update(dt)
+function game:update(dt)
 
 	Shake.update(dt)
 
@@ -194,9 +258,6 @@ function love.update(dt)
 		cpu_paddle.vel.x = 0
 	end
 
-	-- umass amherst
-	-- 9-5 eastern 413 577 2610
-	-- outreach@honors.umass.edu
 
 	cpu_paddle.pos = cpu_paddle.pos + cpu_paddle.vel
 
@@ -278,7 +339,7 @@ function love.update(dt)
 		end
 	end
 
-	if ball.pos.y + ball.size > WINDOW_HEIGHT then
+	if ball.pos.y + ball.size > WINDOW_HEIGHT and not gameIsOver then
 		gameOver()
 	end
 	
@@ -298,16 +359,17 @@ function love.update(dt)
 
 end
 
-function love.draw()
+function game:draw()
 
 	love.graphics.setColor(color_white)
 
-	love.graphics.print(math.floor(SCORE), WINDOW_WIDTH / 2, WINDOW_HEIGHT - 22)
+	love.graphics.print(math.floor(SCORE), WINDOW_WIDTH / 2, WINDOW_HEIGHT - 24)
 	-- love.graphics.print(nextLetter, WINDOW_WIDTH / 2, 200)
 
 	if gameIsOver then
-		love.graphics.print("FINAL SCORE", WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2)
-		love.graphics.print(math.floor(SCORE), WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 40)
+		love.graphics.printf("FINAL SCORE", WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 - 30, 0, 'center')
+		love.graphics.printf(math.floor(SCORE), WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 40, 0, 'center')
+		love.graphics.print('Type \'restart\' or \'menu\'', 10, 70)
 	end
 
 	if not wordCompleted then
@@ -355,17 +417,20 @@ function love.draw()
 	
 end
 
-function love.keypressed(key)
-	if not gameIsOver then
-		if key == 'backspace' then
-			currentWord = string.sub(currentWord, 1, #currentWord - 1)
-			if #currentWord > 0 then
+function game:keypressed(key)
+	if key == 'backspace' then
+		currentWord = string.sub(currentWord, 1, #currentWord - 1)
+		if #currentWord > 0 then
+			if not gameIsOver then
 				checkWord()
+			else
+				checkWordForCommands()
 			end
-		elseif contains(letters, key) then
+		end
+	elseif contains(letters, key) then
+		currentWord = currentWord .. key
+		if not gameIsOver then
 			writeErrors()
-			sound_tw_arr[math.random(1, #sound_tw_arr)]:play()
-			currentWord = currentWord .. key
 			if nextLetter ~= nil and nextLetter ~= '' then
 				-- print(key, nextLetter)
 				if key == nextLetter then
@@ -378,6 +443,8 @@ function love.keypressed(key)
 			if currentWord == answerWord then
 				Timer.add(.3, wordComplete)
 			end
+		else
+			checkWordForCommands()
 		end
 	end
 end
@@ -392,6 +459,11 @@ function writeErrors()
 	for i, v in pairs(errorsPerLetter) do
 		love.filesystem.append('errorsPerLetter.txt', v[2] .. '\n')
 	end
+end
+
+function setErrorsToDefault()
+	errorsPerLetter = defaultErrorsPerLetter
+	writeErrors()
 end
 
 function readErrors()
@@ -416,14 +488,17 @@ end
 
 function letterCorrect(letter)
 	errorsPerLetter[getIndexByLetter(letter)][2] = errorsPerLetter[getIndexByLetter(letter)][2] - 2
+	sound_tw_arr[math.random(1, #sound_tw_arr)]:play()
 end
 
 function letterIncorrect(letter)
 	-- print(letter)
 	errorsPerLetter[getIndexByLetter(letter)][2] = errorsPerLetter[getIndexByLetter(letter)][2] + 11
+	sound_stuck:play()
 end
 
 function wordComplete()
+
 	sound_lineend:play()
 	SCORE = SCORE + 100 * mult
 	wordCompleted = true
@@ -442,7 +517,7 @@ end
 
 function newWord()
 	wordStartTime = love.timer.getTime()
-	ball.vel = ball.vel / mult
+	ball.vel = ball.vel / (mult - 0.2)
 	currentWord = ''
 	answerWord = selectNextWord()
 	wordCompleted = false
@@ -525,6 +600,13 @@ end
 
 function gameOver()
 	gameIsOver = true
+	currentWord = ''
+	wrong = true
+	HIGH_SCORE = tonumber(HIGH_SCORE)
+	if SCORE > HIGH_SCORE then
+		HIGH_SCORE = SCORE
+		love.filesystem.write('hiscore.txt', HIGH_SCORE)
+	end
 end
 
 function getScoreOfWord(word)
@@ -562,5 +644,17 @@ function selectNextWord()
 	-- print('BEST WORD', bestWord)
 
 	return bestWord
+
+end
+
+function checkWordForCommands()
+
+	if currentWord == 'restart' or currentWord == 'reset' or currentWord == 'new game' then
+		wrong = false
+		Timer.add(1, function() Gamestate.switch(game) end)
+	elseif currentWord == 'menu' then
+		wrong = false
+		Timer.add(1, function() Gamestate.switch(menu) end)
+	end
 
 end
